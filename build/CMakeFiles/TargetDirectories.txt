@@ -1,0 +1,5 @@
+/root/autodl-tmp/hpc_learning/build/CMakeFiles/vector_add.dir
+/root/autodl-tmp/hpc_learning/build/CMakeFiles/vector_add_test.dir
+/root/autodl-tmp/hpc_learning/build/CMakeFiles/test.dir
+/root/autodl-tmp/hpc_learning/build/CMakeFiles/edit_cache.dir
+/root/autodl-tmp/hpc_learning/build/CMakeFiles/rebuild_cache.dir
