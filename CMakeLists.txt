@@ -6,12 +6,12 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置CUDA架构（根据你的GPU调整）
-set(CMAKE_CUDA_ARCHITECTURES 75)
-
+set(CMAKE_CUDA_ARCHITECTURES 70)
 # 查找GTest包
 find_package(GTest REQUIRED)
 
 # 添加include目录
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ops)
 

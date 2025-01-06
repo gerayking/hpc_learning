@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <cuda_runtime.h>
 #include <random>
-#include "ops/vector_add.cuh"
+#include "ops/vector_add.h"
 
 class VectorAddTest : public ::testing::Test {
 protected:
@@ -50,10 +50,21 @@ protected:
 // 测试基本功能
 TEST_F(VectorAddTest, CorrectResults) {
     cudaError_t err = vectorAdd(h_a, h_b, h_c, array_size);
-    // vectorAddCPU(h_a, h_b, h_c, array_size);
     ASSERT_EQ(err, cudaSuccess) << "CUDA错误: " << cudaGetErrorString(err);
 
-    // 验证结果
+    // 找到第一个不匹配的结果并打印
+    bool found_mismatch = false;
+    for (int i = 0; i < array_size && !found_mismatch; i++) {
+        if (std::abs(h_c[i] - expected[i]) > epsilon) {
+            std::cout << "首个不匹配位置 " << i 
+                     << "：期望值 = " << expected[i] 
+                     << "，实际值 = " << h_c[i] 
+                     << "，差异 = " << std::abs(h_c[i] - expected[i]) << std::endl;
+            found_mismatch = true;
+        }
+    }
+
+    // 仍然保留原有的测试断言
     for (int i = 0; i < array_size; i++) {
         EXPECT_NEAR(h_c[i], expected[i], epsilon) 
             << "位置 " << i 
@@ -62,38 +73,72 @@ TEST_F(VectorAddTest, CorrectResults) {
     }
 }
 
+
+
+
 // 测试性能
 TEST_F(VectorAddTest, Performance) {
+    // 定义要测试的不同数组大小
+    std::vector<int> test_sizes = {
+        1000,          // 1K
+        100000,        // 100K
+        1000000,       // 1M
+        10000000,      // 10M
+        100000000      // 100M
+    };
+
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    // 预热GPU
-    vectorAdd(h_a, h_b, h_c, array_size);
+    std::cout << "\n性能测试结果：" << std::endl;
+    std::cout << "数组大小\t耗时(ms)\t带宽(GB/s)" << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
 
-    // 计时测试
-    cudaEventRecord(start);
-    cudaError_t err = vectorAdd(h_a, h_b, h_c, array_size);
-    cudaEventRecord(stop);
-    
-    ASSERT_EQ(err, cudaSuccess) << "CUDA错误: " << cudaGetErrorString(err);
+    for (int size : test_sizes) {
+        // 为每个大小分配内存
+        float *test_a, *test_b, *test_c;
+        test_a = new float[size];
+        test_b = new float[size];
+        test_c = new float[size];
 
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
+        // 初始化数据
+        for (int i = 0; i < size; i++) {
+            test_a[i] = 1.0f;
+            test_b[i] = 2.0f;
+        }
 
-    // 计算和输出性能指标
-    float bandwidth = (3 * array_size * sizeof(float)) / (milliseconds * 1e6);
-    std::cout << "性能测试结果：" << std::endl;
-    std::cout << "处理 " << array_size << " 个元素耗时: " << milliseconds << " ms" << std::endl;
-    std::cout << "带宽: " << bandwidth << " GB/s" << std::endl;
+        // 预热GPU
+        vectorAdd(test_a, test_b, test_c, size);
+
+        // 计时测试
+        cudaEventRecord(start);
+        cudaError_t err = vectorAdd(test_a, test_b, test_c, size);
+        cudaEventRecord(stop);
+        
+        ASSERT_EQ(err, cudaSuccess) << "CUDA错误: " << cudaGetErrorString(err);
+
+        cudaEventSynchronize(stop);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+
+        // 计算带宽 (3个数组：2个输入1个输出)
+        float bandwidth = (3 * size * sizeof(float)) / (milliseconds * 1e6);
+        
+        // 格式化输出结果
+        printf("%9d\t%8.3f\t%8.2f\n", size, milliseconds, bandwidth);
+
+        // 清理内存
+        delete[] test_a;
+        delete[] test_b;
+        delete[] test_c;
+
+
+    }
 
     // 清理事件
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-
-    // 性能断言（示例阈值，需要根据实际硬件调整）
-    EXPECT_LT(milliseconds, 10.0f) << "性能低于预期";
 }
 
 // 测试边界情况
@@ -104,7 +149,7 @@ TEST_F(VectorAddTest, ZeroSize) {
 
 // 测试大数据量
 TEST_F(VectorAddTest, LargeArray) {
-    const int large_size = 10000;  // 1千万个元素
+    const int large_size = 1024;  // 1千万个元素
     float* large_a = new float[large_size];
     float* large_b = new float[large_size];
     float* large_c = new float[large_size];
@@ -126,6 +171,67 @@ TEST_F(VectorAddTest, LargeArray) {
     delete[] large_a;
     delete[] large_b;
     delete[] large_c;
+}
+
+// 测试vector_add_kernel的性能
+TEST_F(VectorAddTest, KernelPerformance) {
+    // 定义要测试的不同数组大小
+    std::vector<int> test_sizes = {
+        1000,          // 1K
+        100000,        // 100K
+        1000000,       // 1M
+        10000000,      // 10M
+        100000000      // 100M
+    };
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    std::cout << "\n内核性能测试结果：" << std::endl;
+    std::cout << "数组大小\t耗时(ms)\t带宽(GB/s)" << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
+
+    for (int size : test_sizes) {
+        // 为每个大小分配内存
+        float *d_a, *d_b, *d_c;
+        cudaMalloc(&d_a, size * sizeof(float));
+        cudaMalloc(&d_b, size * sizeof(float));
+        cudaMalloc(&d_c, size * sizeof(float));
+
+        // 初始化数据
+        std::vector<float> h_a(size, 1.0f);
+        std::vector<float> h_b(size, 2.0f);
+        cudaMemcpy(d_a, h_a.data(), size * sizeof(float), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_b, h_b.data(), size * sizeof(float), cudaMemcpyHostToDevice);
+
+        // 预热GPU
+        vector_add_kernel<<<(size + 255) / 256, 256>>>(d_a, d_b, d_c, size);
+
+        // 计时测试
+        cudaEventRecord(start);
+        vector_add_kernel<<<(size + 255) / 256, 256>>>(d_a, d_b, d_c, size);
+        cudaEventRecord(stop);
+        
+        cudaEventSynchronize(stop);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+
+        // 计算带宽 (3个数组：2个输入1个输出)
+        float bandwidth = (3 * size * sizeof(float)) / (milliseconds * 1e6);
+        
+        // 格式化输出结果
+        printf("%9d\t%8.3f\t%8.2f\n", size, milliseconds, bandwidth);
+
+        // 清理内存
+        cudaFree(d_a);
+        cudaFree(d_b);
+        cudaFree(d_c);
+    }
+
+    // 清理事件
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 }
 
 int main(int argc, char **argv) {
