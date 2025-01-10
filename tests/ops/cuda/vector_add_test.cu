@@ -206,11 +206,11 @@ TEST_F(VectorAddTest, KernelPerformance) {
         cudaMemcpy(d_b, h_b.data(), size * sizeof(float), cudaMemcpyHostToDevice);
 
         // 预热GPU
-        vector_add_kernel<<<(size + 255) / 256, 256>>>(d_a, d_b, d_c, size);
+        vector_add_kernel_v1<<<(size + 255) / 256, 256>>>(d_a, d_b, d_c, size);
 
         // 计时测试
         cudaEventRecord(start);
-        vector_add_kernel<<<(size + 255) / 256, 256>>>(d_a, d_b, d_c, size);
+        vector_add_kernel_v1<<<(size + 255) / 256, 256>>>(d_a, d_b, d_c, size);
         cudaEventRecord(stop);
         
         cudaEventSynchronize(stop);

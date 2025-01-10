@@ -1,2 +1,0 @@
-/usr/bin/ar qc libvector_add.a CMakeFiles/vector_add.dir/src/ops/cuda/vector_add.cu.o
-/usr/bin/ranlib libvector_add.a

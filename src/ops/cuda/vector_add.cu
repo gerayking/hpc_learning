@@ -2,33 +2,72 @@
 #include <random>
 #include <stdio.h>
 #include <ops/vector_add.h>
-// CUDA kernel函数 - 在GPU上执行向量加法
-__global__ void vector_add_kernel(const float* a, const float* b, float* c, int n) {
-    
 
-    // 计算当前线程处理的元素索引
+#define FLOAT4(x) (*reinterpret_cast<float4*>(&(x)))
+
+__global__ void vector_add_kernel_v0(float* a, float* b, float* c, int n) {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    int float4_idx = idx * 4;
-    
-    const float4* a4 = reinterpret_cast<const float4*>(a);
-    const float4* b4 = reinterpret_cast<const float4*>(b);
-    float4* c4 = reinterpret_cast<float4*>(c);
+    if (idx < n) {
+        c[idx] = a[idx] + b[idx];
+    }
+}
 
+
+// CUDA kernel函数 - 在GPU上执行向量加法
+__global__ void vector_add_kernel_v1(float* a, float* b, float* c, int n) {
+    
+    // 计算当前线程处理的元素索引
+    int idx = 4 * (blockDim.x * blockIdx.x + threadIdx.x);
     // 确保线程索引不超过数组边界
-    if (float4_idx +3 < n) {
-        float4 tempA = a4[idx];
-        float4 tempB = b4[idx];
+    if(idx < n){
+        float4 tempA = FLOAT4(a[idx]);
+        float4 tempB = FLOAT4(b[idx]);
         float4 tempC;
         tempC.x = tempA.x + tempB.x;
         tempC.y = tempA.y + tempB.y;
         tempC.z = tempA.z + tempB.z;
         tempC.w = tempA.w + tempB.w;
-        c4[idx] = tempC;
+        FLOAT4(c[idx]) = tempC;
     }
+}
 
-    if(float4_idx < n ){
-        for(int i = 0; i < 4 && float4_idx + i < n; i++){
-            c[float4_idx + i] = a[float4_idx + i] + b[float4_idx + i];
+// CUDA kernel函数 - 在GPU上执行向量加法
+__global__ void vector_add_kernel_v2(float* a, float* b, float* c, int n) {
+    
+    // 计算当前线程处理的元素索引
+    int idx = 8 * blockDim.x * blockIdx.x + threadIdx.x * 4;
+    // 确保线程索引不超过数组边界
+    #pragma unroll
+    for(int i=0;i<2;i++){
+        if(idx+i*blockDim.x*4 < n){
+            float4 tempA = FLOAT4(a[idx+i*blockDim.x*4]);
+            float4 tempB = FLOAT4(b[idx+i*blockDim.x*4]);
+            float4 tempC;
+            tempC.x = tempA.x + tempB.x;
+            tempC.y = tempA.y + tempB.y;
+            tempC.z = tempA.z + tempB.z;
+            tempC.w = tempA.w + tempB.w;
+            FLOAT4(c[idx+i*blockDim.x*4]) = tempC;
+        }
+    }
+}
+// CUDA kernel函数 - 在GPU上执行向量加法
+__global__ void vector_add_kernel_v3(float* a, float* b, float* c, int n, int stride) {
+    
+    // 计算当前线程处理的元素索引
+    int idx = 4 *stride * blockDim.x * blockIdx.x + threadIdx.x * 4;
+    // 确保线程索引不超过数组边界
+    #pragma unroll
+    for(int i=0;i<stride;i++){
+        if(idx+i*blockDim.x*4 < n){
+            float4 tempA = FLOAT4(a[idx+i*blockDim.x*4]);
+            float4 tempB = FLOAT4(b[idx+i*blockDim.x*4]);
+            float4 tempC;
+            tempC.x = tempA.x + tempB.x;
+            tempC.y = tempA.y + tempB.y;
+            tempC.z = tempA.z + tempB.z;
+            tempC.w = tempA.w + tempB.w;
+            FLOAT4(c[idx+i*blockDim.x*4]) = tempC;
         }
     }
 }
@@ -68,7 +107,7 @@ cudaError_t vectorAdd(const float* h_a, const float* h_b, float* h_c, int n) {
     int blocksPerGrid = (n + threadsPerBlock * 4 - 1) / (threadsPerBlock * 4);
 
     // 启动kernel
-    vector_add_kernel<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
+    vector_add_kernel_v1<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
 
     // 检查kernel执行错误
     err = cudaGetLastError();

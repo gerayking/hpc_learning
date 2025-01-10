@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/vector_add_test.dir/tests/ops/cuda/vector_add_test.cu.o -o vector_add_test   -L/usr/local/cuda/targets/x86_64-linux/lib/stubs  -L/usr/local/cuda/targets/x86_64-linux/lib  libvector_add.a /usr/lib/x86_64-linux-gnu/libgtest_main.a /usr/lib/x86_64-linux-gnu/libgtest.a -lcudadevrt -lcudart_static -lrt -lpthread -ldl 
