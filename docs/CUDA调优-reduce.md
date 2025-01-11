@@ -33,6 +33,8 @@ __global__ void reduce_kernel_baseline(float* input, float* output, int n) {
 | 版本 | 带宽 (GB/s) | 耗时 (ms) | 说明 |
 |-----|------------|-----------|------|
 | Baseline | 166.72 | 3.23 | 基准版本，存在warp divergence问题 |
+
+
 存在的问题：
 - GPU中以Warp作为调度单位，每个Warp中包含32个thread，而每个thread负责一个元素的相加，导致Warp中大部分thread处于空闲状态（也就是图中的白色格子线程什么也没做）， 这就是warp divergence问题。
 
@@ -73,7 +75,7 @@ __global__ void reduce_kernel_v1(float* input, float* output, int n) {
 | Baseline | 166.72 | 3.23ms | 基准版本，存在warp divergence问题 |
 | 优化一 | 232.72 | 2.32ms | 解决warp divergence问题，但存在bank conflict |
 
-思考：这里我是按照一些博客，以及NVIDIA的ppt上来优化的，很显然这种优化思路并不常规，这里就出现了性能下降。
+
 ## 存在的问题：
 - 每个thread负责两个元素相加， 但是每个thread负责的元素在shared memory中是连续的， 所以会导致bank conflict， 影响性能
 从图中可以看到，在第一轮step=1的时,
@@ -340,4 +342,4 @@ __global__ void reduce_kernel_v6(float *input, float* output, int n){
 | 优化五 | 798.22 | 0.672ms | 循环完全展开 |  
 | 优化六 | 863.39 | 0.619ms | shuffle reduce |
 
-性能提升很大, 再次思考性能收益来自于哪里，没错，还是warp stalled，在优化五种，还有很多次的shared memory的访存， 而优化六中， 使用shuffle指令， 只需要一次shared_memory的访存，且只有一个同步指令。
+性能提升8%左右, 再次思考性能收益来自于哪里，在优化五种，还有很多次的shared memory的访存， 而优化六中， 使用shuffle指令， 只需要一次shared_memory的访存，且只有一个同步指令。
