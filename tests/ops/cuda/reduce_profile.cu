@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include "ops/reduce.h"
+#include <random>   // 添加random头文件
 
 bool check(float *out,float *res,int n){
     for(int i=0;i<n;i++){
@@ -27,9 +28,15 @@ void timing(void (*reduce_func)(float*, float*, int), int n,int thread_num, int 
     cudaMalloc(&d_in, n * sizeof(float));
     cudaMalloc(&d_out, block_num * sizeof(float));
     double sum = 0;
+    // 创建随机数生成器
+    std::random_device rd;  // 用于获取随机种子
+    std::mt19937 gen(rd()); // Mersenne Twister 生成器
+    std::uniform_real_distribution<float> dis(0.0f, 1.0f); // 均匀分布在[0,1]之间
+
+    // 初始化数组
     for(size_t i = 0; i < n; i++){
-        h_in[i] = 1;
-        sum += 1;
+        h_in[i] = dis(gen);  // 生成0-1之间的随机浮点数
+        sum += h_in[i];
     }
     cudaMemcpy(d_in, h_in, n * sizeof(float), cudaMemcpyHostToDevice);
 
@@ -52,7 +59,7 @@ void timing(void (*reduce_func)(float*, float*, int), int n,int thread_num, int 
     }
     cudaEventSynchronize(stop);
     cudaMemcpy(h_out, d_out, block_num * sizeof(float), cudaMemcpyDeviceToHost);
-    float sum_out = 0;
+    double sum_out = 0;
     for(int i=0;i<block_num;i++){
         sum_out += h_out[i];
     }
@@ -66,8 +73,8 @@ void timing(void (*reduce_func)(float*, float*, int), int n,int thread_num, int 
     int total_bytes = n * sizeof(float);  // 只计算输入数据的读取
     float bw = bandwidth(total_bytes, seconds);
     
-    if(sum != sum_out){
-        printf("check failed %s sum=%f, sum_out=%f\n", kernel_name, sum, sum_out);
+    if(fabs(sum - sum_out) > 1e-2){
+        printf("check failed %s sum=%f, sum_out=%f, diff=%f\n", kernel_name, sum, sum_out, fabs(sum - sum_out)  );
     }
     printf("%-10s: 耗时=%6.3f ms, 带宽=%6.1f GB/s, %s\n", 
            kernel_name, milliseconds, bw, desc);
@@ -79,7 +86,7 @@ void timing(void (*reduce_func)(float*, float*, int), int n,int thread_num, int 
 
 int main() {
     const int THREAD_PER_BLOCK = 256;
-    const int N = 64 * 1024 * 1024;  // 32M 元素
+    const int N = 128 * 1024 * 1024;  // 32M 元素
     const int block_num = N / THREAD_PER_BLOCK;
     
     // 分配内存
@@ -87,12 +94,6 @@ int main() {
     h_in = (float*)malloc(N * sizeof(float));
     cudaMalloc(&d_in, N * sizeof(float));
     cudaMalloc(&d_out, block_num * sizeof(float));
-    
-    // 初始化数据
-    for(int i = 0; i < N; i++) {
-        h_in[i] = 1.0f;
-    }
-    cudaMemcpy(d_in, h_in, N * sizeof(float), cudaMemcpyHostToDevice);
     
     // 设置grid和block
     dim3 grid(block_num, 1);

@@ -1,7 +1,15 @@
 # HPC学习仓库
-
-## 介绍
+# 介绍
 这个仓库专注于高性能计算（HPC）的学习。它包含使用CUDA和Triton实现的算子，以及实现的具体解析、性能分析和思路等。
+
+# Quick Start
+```
+mkdir build
+cd build
+cmake ..
+make test # 运行正确性测试
+make profile # 运行性能测试
+```
 
 ## 内容
 - **CUDA实现**: 探索使用CUDA实现的各种算子。

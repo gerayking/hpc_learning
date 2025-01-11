@@ -80,6 +80,15 @@ target_link_libraries(reduce_test
     reduce
 )
 
+add_custom_target(profile
+    COMMAND vector_add_profile
+    COMMAND reduce_profile
+    DEPENDS vector_add_profile reduce_profile
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running all profile executables"
+)
+
 # 启用测试
 enable_testing()
 add_test(NAME vector_add_test COMMAND vector_add_test) 
+add_test(NAME reduce_test COMMAND reduce_test) 

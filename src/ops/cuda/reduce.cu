@@ -31,11 +31,9 @@ __global__ void reduce_kernel_v1(float* input, float* output, int n) {
     sdata[tid] = input[i];
     __syncthreads();
     for(unsigned int s=1; s < blockDim.x; s *= 2) {
-        if(threadIdx.x < blockDim.x/(2*s)) {
-            int index = threadIdx.x * 2 * s;
-            if(index < blockDim.x) {
-                sdata[index] += sdata[index + s];
-            }
+        int index = threadIdx.x * 2 * s;
+        if(index < blockDim.x) {
+            sdata[index] += sdata[index + s];
         }
         __syncthreads();
     }

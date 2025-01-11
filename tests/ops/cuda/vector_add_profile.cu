@@ -41,7 +41,7 @@ void test_vector_add_kernel(int size,int GridSize,int BlockSize, cudaEvent_t sta
     }
     float bandwidth = (3 * size * sizeof(float)) / (milliseconds * 1e6);
 
-    printf("%8s\t%9d\t%8.3f\t%8.2f\n", kernel_name.c_str(), size, milliseconds, bandwidth);
+    printf("%8s\t%9d\t%9d\t%9d\t%8.3f\t%8.2f\n", kernel_name.c_str(), GridSize, BlockSize, size, milliseconds, bandwidth);
     // 清理内存
     cudaFree(d_a);
     cudaFree(d_b);
@@ -99,10 +99,7 @@ void test_vector_add_kernel_v3(int size,int GridSize,int BlockSize, cudaEvent_t 
 
 int main(int argc, char **argv) {
     std::vector<int> test_sizes = {
-        1024 * 16,        // 100K
-        1024 * 1024,       // 1M
-        1024 * 1024 * 12,      // 12MB
-        1024 * 1024 * 128,     // 128MB
+        1024 * 1024 * 12,     // 128MB
     };
 
     cudaEvent_t start, stop, start_v1, stop_v1;
@@ -111,9 +108,9 @@ int main(int argc, char **argv) {
     cudaEventCreate(&start_v1);
     cudaEventCreate(&stop_v1);
 
-    std::cout << "\n内核性能测试结果：" << std::endl;
+    std::cout << "\nvector_add_kernel 性能测试结果：" << std::endl;
     std::cout << "版本名称\tGridSize\tBlockSize\t数组大小\t耗时(ms)\t带宽(GB/s)" << std::endl;
-    std::cout << "-----------------------------------------------------------" << std::endl;
+    std::cout << "--------------------------------------------------------------------------------------------------------" << std::endl;
 
     for (int size : test_sizes) {
         int BlockSize = 256;
@@ -136,6 +133,8 @@ int main(int argc, char **argv) {
         test_vector_add_kernel_v3(size, GridSize, BlockSize, start, stop, vector_add_kernel_v3, "v6", 32);
         // ... existing code for v1 ...
     }
+    std::cout << "--------------------------------------------------------------------------------------------------------" << std::endl;
+
 
     // 清理事件
     cudaEventDestroy(start);
